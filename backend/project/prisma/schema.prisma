@@ -1,0 +1,93 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+    binaryTargets = ["native"] // Avoids remote download
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String
+  email          String    @unique
+  passwordHash   String
+  subscriptionId String?
+  traccarUserId  Int?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  subscription   SubscriptionPlan? @relation(fields: [subscriptionId], references: [id])
+  devices        Device[]
+  orders         Order[]
+  reports        Report[]
+
+  @@map("users")
+}
+
+model SubscriptionPlan {
+  id           String @id @default(cuid())
+  name         String @unique
+  price        Float
+  deviceLimit  Int
+  durationDays Int
+  features     String // JSON string of features
+  isActive     Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users        User[]
+  orders       Order[]
+
+  @@map("subscription_plans")
+}
+
+model Device {
+  id              String    @id @default(cuid())
+  userId          String
+  name            String
+  traccarDeviceId Int?
+  imei            String    @unique
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("devices")
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  userId     String
+  planId     String
+  amount     Float
+  status     String      @default("PENDING")
+  paymentRef String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan       SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@map("orders")
+}
+
+model Report {
+  id        String     @id @default(cuid())
+  userId    String
+  type      String
+  dateRange String     // JSON string with start and end dates
+  fileUrl   String?
+  status    String     @default("GENERATING")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("reports")
+}
